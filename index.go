@@ -284,6 +284,35 @@ func CollectIntegrationsDataStreams(integrationsPath string) []map[string]interf
 				} else {
 					dataStreamManifest["has_system_test"] = false
 				}
+
+				// for all yml files in the "fields" subfolder in the datastream, read and parse the file, then count the number of entries in the top level list whether they have "external" set to "ecs". Store this as "ecs field count" on the datastream
+				fieldsPath := filepath.Join(dataStreamPackagePath, dataStream.Name(), "fields")
+				files, err := ioutil.ReadDir(fieldsPath)
+				if err != nil {
+					fmt.Printf("Error reading fields directory: %v\n", err)
+				}
+				ecsFieldCount := 0
+				for _, file := range files {
+					fieldFilePath := filepath.Join(fieldsPath, file.Name())
+					fieldContents, err := ioutil.ReadFile(fieldFilePath)
+					if err != nil {
+						fmt.Printf("Error reading field file: %v\n", err)
+						continue
+					}
+					var fields []interface{}
+					if err := yaml.Unmarshal(fieldContents, &fields); err != nil {
+						fmt.Printf("Error unmarshalling field file: %v\n", err)
+						continue
+					}
+					for _, field := range fields {
+						fieldMap := field.(map[string]interface{})
+						if fieldMap["external"] == "ecs" {
+							ecsFieldCount++
+						}
+					}
+				}
+				dataStreamManifest["ecs_field_count"] = ecsFieldCount
+
 				allDataStreams = append(allDataStreams, dataStreamManifest)
 			}
 		}
@@ -622,10 +651,10 @@ func uploadDatastreams(datastreams []map[string]interface{}) {
 }
 
 func main() {
-	visualizations := CollectIntegrationsVisualizations("./integrations")
-	saveVisualizationsToFile(visualizations)
-	uploadVisualizations(visualizations)
-	dataStreams := CollectIntegrationsDataStreams("./integrations")
+	// visualizations := CollectIntegrationsVisualizations("./integrations")
+	// saveVisualizationsToFile(visualizations)
+	// uploadVisualizations(visualizations)
+	dataStreams := CollectIntegrationsDataStreams("../integrations")
 	saveDataStreamsToFile(dataStreams)
 	uploadDatastreams(dataStreams)
 }
